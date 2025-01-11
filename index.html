@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Space Mono', monospace;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a0a23 0%, #1a1a3a 100%);
+            color: white;
+            position: relative;
+            padding-top: 10px;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(65, 105, 225, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(0, 255, 0, 0.1) 0%, transparent 50%);
+            z-index: 0;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .branding {
+            position: relative;
+            font-size: 16px; /* Reduced font size */
+            font-weight: 700;
+            color: #4169E1;
+            margin-bottom: 10px; /* Reduced margin */
+            opacity: 0.8; /* Made slightly less prominent */
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 15px; /* Reduced margin */
+        }
+
+        .header h1 {
+            font-size: 42px;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #4169E1, #00ff00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            font-size: 16px;
+            color: #888;
+        }
+
+        .timer {
+            font-size: 24px;
+            margin-bottom: 15px; /* Reduced margin */
+            color: #4169E1;
+        }
+
+        .game-container {
+            position: relative;
+            transform: scale(0.8);
+            margin-top: -30px; /* Pulled up more */
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(20px, 35px));
+            grid-template-rows: repeat(18, minmax(20px, 35px));
+            gap: 4px;
+            padding: 15px;
+            background: rgba(26, 26, 26, 0.8);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(65, 105, 225, 0.2),
+                        inset 0 0 10px rgba(65, 105, 225, 0.1);
+            backdrop-filter: blur(5px);
+        }
+
+        .led {
+            width: 100%;
+            height: 100%;
+            background: #333;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+            position: relative;
+        }
+
+        .led.milestone {
+            background: #4169E1;
+            opacity: 0.3;
+        }
+
+        .led::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60%;
+            height: 60%;
+            border-radius: 2px;
+            background: #444;
+            opacity: 0.5;
+        }
+
+        .led.on {
+            background: #ffff00;
+            box-shadow: 0 0 15px #ffff00;
+            transform: scale(1.05);
+        }
+
+        .led.completed {
+            background: #00ff00;
+            box-shadow: 0 0 15px #00ff00;
+            transform: scale(1);
+        }
+
+        .led.failed {
+            background: #ff0000 !important;
+            box-shadow: 0 0 15px #ff0000;
+            transform: scale(1.05);
+            transition: all 0.3s ease;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 20px; /* Reduced from 32px */
+            background: rgba(10, 10, 10, 0.95);
+            padding: 20px 30px; /* Adjusted padding */
+            border-radius: 10px;
+            display: none;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(65, 105, 225, 0.3);
+            border: 1px solid #4169E1;
+            line-height: 1.5; /* Added line height for better spacing */
+        }
+
+        #gameOver .result {
+            font-size: 24px; /* Slightly larger for the main result text */
+            margin-bottom: 8px; /* Space between result and details */
+            color: #4169E1; /* Highlighted color for the result */
+        }
+
+        #gameOver .details {
+            font-size: 18px; /* Smaller size for additional details */
+            color: #888; /* Softer color for details */
+        }
+
+        .start-prompt {
+            position: absolute;
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #888;
+            font-size: 16px;
+            width: 100%;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="content-wrapper">
+        <div class="branding">alvin.fun</div>
+        <div class="header">
+            <h1>Stack</h1>
+            <p>Stack the blocks to reach the top</p>
+        </div>
+        <div class="timer" id="timer">00:00:00</div>
+        <div class="game-container">
+            <div class="game-grid" id="gameGrid"></div>
+            <div id="gameOver"></div>
+            <div class="start-prompt" id="startPrompt">Click anywhere to start</div>
+        </div>
+    </div>
+
+    <script>
+        const ROWS = 18;
+        const COLS = 6;
+        const SECTION_SIZE = 6;
+        
+        let currentRow = ROWS - 1;
+        let leds = [];
+        let movingLeds = [];
+        let moveDirection = Math.random() < 0.5 ? 1 : -1;
+        let moveSpeed = 180;
+        let isGameOver = false;
+        let lastUpdate = 0;
+        let maxLedsAllowed = 3;
+        let startTime = null;
+        let timerInterval = null;
+        let gameStarted = false;
+        let lastFrameTime = 0;
+        let accumulatedTime = 0;
+        let clickProcessed = false;
+
+        // Your original timer functions remain the same
+        function startTimer() {
+            startTime = new Date();
+            timerInterval = setInterval(updateTimer, 10);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            return formatTime(new Date() - startTime);
+        }
+
+        function updateTimer() {
+            if (!startTime) return;
+            const elapsed = new Date() - startTime;
+            document.getElementById('timer').textContent = formatTime(elapsed);
+        }
+
+        function formatTime(ms) {
+            const minutes = Math.floor(ms / 60000);
+            const seconds = Math.floor((ms % 60000) / 1000);
+            const centiseconds = Math.floor((ms % 1000) / 10);
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}:${centiseconds.toString().padStart(2, '0')}`;
+        }
+
+        // Initialize grid
+        const grid = document.getElementById('gameGrid');
+        for (let row = 0; row < ROWS; row++) {
+            leds[row] = [];
+            for (let col = 0; col < COLS; col++) {
+                const led = document.createElement('div');
+                led.className = 'led';
+                if (row === 12 || row === 6 || row === 0) {
+                    led.classList.add('milestone');
+                }
+                grid.appendChild(led);
+                leds[row][col] = led;
+            }
+        }
+
+        function getMovingLedsCount(row) {
+            if (row > 11) {
+                return Math.min(3, maxLedsAllowed);
+            } else if (row > 5) {
+                return Math.min(2, maxLedsAllowed);
+            }
+            return 1;
+        }
+
+        function getMoveSpeed(row) {
+            if (row > 11) return 280;
+            if (row > 5) return 250;
+            return 220;
+        }
+
+        // Modified smoothMove for better timing
+        function smoothMove(timestamp) {
+            if (!gameStarted) {
+                lastUpdate = timestamp;
+                requestAnimationFrame(smoothMove);
+                return;
+            }
+
+            if (!lastUpdate) lastUpdate = timestamp;
+            const deltaTime = timestamp - lastUpdate;
+            
+            if (deltaTime >= moveSpeed) {
+                updateMovingLeds();
+                lastUpdate = timestamp;
+                clickProcessed = false;
+            }
+            
+            if (!isGameOver) {
+                requestAnimationFrame(smoothMove);
+            }
+        }
+
+        function updateMovingLeds() {
+            // Clear previous LEDs
+            movingLeds.forEach(pos => {
+                leds[currentRow][pos].className = 'led';
+                if (currentRow === 12 || currentRow === 6 || currentRow === 0) {
+                    leds[currentRow][pos].classList.add('milestone');
+                }
+            });
+
+            let leftmost = movingLeds[0];
+            leftmost += moveDirection;
+
+            // Bounce off walls
+            if (leftmost < 0 || leftmost + movingLeds.length > COLS) {
+                moveDirection *= -1;
+                leftmost = movingLeds[0] + moveDirection;
+            }
+
+            // Update positions
+            movingLeds = [];
+            for (let i = 0; i < getMovingLedsCount(currentRow); i++) {
+                movingLeds.push(leftmost + i);
+            }
+
+            // Update visuals
+            movingLeds.forEach(pos => {
+                leds[currentRow][pos].className = 'led on';
+            });
+        }
+
+        function initializeRow() {
+            movingLeds = [];
+            const count = getMovingLedsCount(currentRow);
+            
+            moveDirection = Math.random() < 0.5 ? 1 : -1;
+            let startPos = moveDirection === 1 ? 0 : COLS - count;
+            
+            for (let i = 0; i < count; i++) {
+                movingLeds.push(startPos + i);
+            }
+            
+            moveSpeed = getMoveSpeed(currentRow);
+            lastUpdate = 0;
+        }
+
+        function checkMatch() {
+            if (currentRow === ROWS - 1) return true;
+            
+            const belowRow = currentRow + 1;
+            const activePositions = new Set(movingLeds);
+            const matchingPositions = new Set();
+
+            for (let col = 0; col < COLS; col++) {
+                if (leds[belowRow][col].className.includes('completed') && activePositions.has(col)) {
+                    matchingPositions.add(col);
+                }
+            }
+
+            return matchingPositions.size === movingLeds.length;
+        }
+
+        function gameOver(won, time = '') {
+            isGameOver = true;
+            stopTimer();
+            const gameOverElement = document.getElementById('gameOver');
+            
+            if (won) {
+                gameOverElement.innerHTML = `
+                    <div class="result">You Won!</div>
+                    <div class="details">Time: ${time}</div>
+                `;
+                gameOverElement.style.display = 'block';
+            } else {
+                setTimeout(() => {
+                    gameOverElement.innerHTML = `
+                        <div class="result">You Lost!</div>
+                        <div class="details">Click to try again</div>
+                    `;
+                    gameOverElement.style.display = 'block';
+                }, 1000);
+            }
+        }
+
+        function handleClick() {
+            if (isGameOver) {
+                location.reload();
+                return;
+            }
+
+            if (!gameStarted) {
+                gameStarted = true;
+                document.getElementById('startPrompt').style.display = 'none';
+                startTimer();
+                initializeRow();
+                return;
+            }
+
+            if (clickProcessed) return;
+            clickProcessed = true;
+
+            if (checkMatch()) {
+                movingLeds.forEach(pos => {
+                    const led = leds[currentRow][pos];
+                    led.className = 'led completed';
+                });
+
+                currentRow--;
+
+                if (currentRow < 0) {
+                    const finalTime = stopTimer();
+                    gameOver(true, finalTime);
+                    return;
+                }
+
+                initializeRow();
+            } else {
+                movingLeds.forEach(pos => {
+                    const led = leds[currentRow][pos];
+                    led.className = 'led failed';
+                });
+                gameOver(false);
+            }
+        }
+
+        document.addEventListener('click', handleClick);
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                handleClick();
+            }
+        });
+
+        requestAnimationFrame(smoothMove);
+    </script>
+</body>
+</html>
