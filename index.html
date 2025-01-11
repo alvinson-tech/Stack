@@ -211,7 +211,7 @@
         let leds = [];
         let movingLeds = [];
         let moveDirection = Math.random() < 0.5 ? 1 : -1;
-        let moveSpeed = 180;
+        let moveSpeed = 220;
         let isGameOver = false;
         let lastUpdate = 0;
         let maxLedsAllowed = 3;
@@ -273,9 +273,13 @@
         }
 
         function getMoveSpeed(row) {
-            if (row > 11) return 180;
-            if (row > 5) return 160;
-            return 140;
+            if (row > 11) {        // Bottom section (rows 12-17)
+                return 220;        // Starter speed - slower and easier
+            } else if (row > 5) {  // Middle section (rows 6-11)
+                return 180;        // Medium speed - getting faster
+            } else {               // Top section (rows 0-5)
+                return 150;        // Fast speed - challenging finale
+            }
         }
 
         // Modified smoothMove for better timing
